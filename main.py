@@ -11,7 +11,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "algorithm",
         choices=["optimal", "heuristic"],
-        help="Assembly algorithm: optimal (CP-SAT TSP) or heuristic (not implemented)",
+        help="Assembly algorithm: optimal (CP-SAT TSP) or heuristic (simulated annealing)",
     )
     p.add_argument(
         "max_rows",
@@ -36,6 +36,17 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="CP-SAT time limit in seconds (optimal only)",
     )
+    p.add_argument(
+        "--iterations",
+        type=int,
+        default=60_000,
+        help="Simulated annealing iterations (heuristic only, default: 60000)",
+    )
+    p.add_argument(
+        "--check",
+        action="store_true",
+        help="Run basic_check() on heuristic result (heuristic only)",
+    )
     return p
 
 
@@ -52,11 +63,25 @@ def _run_optimal(args: argparse.Namespace) -> None:
     print(sequence)
 
 
-def _run_heuristic(_args: argparse.Namespace) -> None:
-    raise SystemExit(
-        "Algorithm 'heuristic' is not implemented yet. Use 'optimal' or add a "
-        "heuristic under heuristic/."
+def _run_heuristic(args: argparse.Namespace) -> None:
+    from heuristic.heuristic import basic_check, simulated_annealing
+
+    max_cells = args.max_rows if args.max_rows > 0 else None
+    dna = parse_dna_xml(args.xml, seed=args.seed, max_cells=max_cells)
+    result = simulated_annealing(
+        dna,
+        seed=args.seed,
+        iterations=args.iterations,
     )
+    print("Best cost:", result.cost)
+    print("Iterations:", result.iterations)
+    print("Known k-mer windows in result:", result.known_kmers_used)
+    print("Unknown k-mer windows in result:", result.unknown_kmers_count)
+    print("Sequence length:", len(result.sequence))
+    print("Sequence:")
+    print(result.sequence)
+    if args.check:
+        basic_check(dna, result)
 
 
 def main() -> None:

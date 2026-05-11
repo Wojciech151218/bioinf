@@ -10,15 +10,6 @@ def parse_dna_xml(
     *,
     max_cells: int | None = None,
 ) -> Dna:
-    """
-    Parse DNA probe XML into :class:`Dna`.
-
-    Parameters
-    ----------
-    max_cells:
-        If set and positive, only the first *max_cells* ``<cell>`` elements are
-        read. If ``None`` or ``<= 0``, all cells are included.
-    """
     root = ElementTree.parse(file_path).getroot()
     probe = root.find("probe")
 
