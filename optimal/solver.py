@@ -1,27 +1,3 @@
-"""
-Asymmetric selective TSP on k-mers using OR-Tools CP-SAT ``add_circuit``.
-
-Each k-mer *i* with ``len(kmer.mapped_occurrences) > 0`` is expanded into that
-many tour nodes (one visit per mapped occurrence). A Hamiltonian cycle on the
-expanded graph visits each expanded node exactly once, i.e. each such k-mer
-appears exactly ``len(mapped_occurrences)`` times.
-
-Inputs are two cost matrices as produced by :func:`matrix_pipeline.build_full_cost_matrices`:
-``out_cost[i][j]`` for arc *i* → *j* and ``in_cost`` (transpose). Arc costs on
-the expanded graph use ``out_cost`` for the underlying k-mer indices.
-
-**Gain term (linear surrogate):** The instructions ask for a gain on transitions
-to a k-mer not yet visited. That depends on the global path. We approximate it
-per arc *u* → *v* on the expanded graph by ``dna.length`` when the head and
-tail are copies of *different* k-mers, and ``0`` when they are the same k-mer
-(self-copy moves). The objective minimized is
-``Σ lit * (cost - gain_approx)`` (equivalent to maximizing overlap-related gain
-in a myopic way). Exact path-dependent gain would need extra state variables.
-
-Docs: `CpModel.add_circuit <https://developers.google.com/optimization/reference/python/sat/python/cp_model#cp_model.CpModel.AddCircuit>`_.
-Example pattern: ``examples/python/tsp_sat.py`` in the OR-Tools repo.
-"""
-
 from __future__ import annotations
 
 from ortools.sat.python import cp_model
@@ -32,7 +8,6 @@ from .matrix_pipeline import build_full_cost_matrices
 
 
 def _expansion_for_dna(dna: Dna) -> list[tuple[int, int]]:
-    """For each expanded node: ``(kmer_index, copy_index)``."""
     expanded: list[tuple[int, int]] = []
     for ki, kmer in enumerate(dna.kmers):
         m = len(kmer.mapped_occurrences)
@@ -46,7 +21,6 @@ def _expanded_cost_and_gain(
     expansion: list[tuple[int, int]],
     out_cost: list[list[int]],
 ) -> tuple[list[list[int]], list[list[int]]]:
-    """Per expanded arc: transition cost and linear gain surrogate."""
     n = len(expansion)
     cost_e = [[0] * n for _ in range(n)]
     gain_e = [[0] * n for _ in range(n)]
@@ -70,13 +44,7 @@ def solve_selective_tsp(
     max_time_seconds: float | None = None,
     num_workers: int = 8,
 ) -> list[int]:
-    """
-    Solve the expanded directed TSP and return **k-mer indices** along the tour.
 
-    If ``out_cost`` / ``in_cost`` are omitted, they are computed from ``dna`` via
-    :func:`.matrix_pipeline.build_full_cost_matrices`. If both matrices
-    are passed, they must be consistent: ``in_cost[i][j] == out_cost[j][i]``.
-    """
     if out_cost is None or in_cost is None:
         out_cost, in_cost = build_full_cost_matrices(dna)
     else:
@@ -169,7 +137,6 @@ def solve_from_dna(
     max_time_seconds: float | None = None,
     num_workers: int = 8,
 ) -> list[int]:
-    """Build matrices from ``dna`` and call :func:`solve_selective_tsp`."""
     out_c, in_c = build_full_cost_matrices(dna)
     return solve_selective_tsp(
         dna,
