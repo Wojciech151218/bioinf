@@ -16,7 +16,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "max_rows",
         type=int,
-        help="Number of <cell> rows to read from XML; 0 or negative means all rows",
+        nargs="?",
+        default=None,
+        help="Max <cell> rows from XML (default: entire file). 0 or negative also means all",
     )
     p.add_argument(
         "--xml",
@@ -47,15 +49,32 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run basic_check() on heuristic result (heuristic only)",
     )
+    p.add_argument(
+        "--alpha",
+        type=float,
+        default=10.0,
+        help="Penalty weight for known k-mer count bands (heuristic only, default: 10)",
+    )
+    p.add_argument(
+        "--beta",
+        type=float,
+        default=1.0,
+        help="Penalty weight for k-mers not in spectrum (heuristic only, default: 1)",
+    )
     return p
+
+
+def _max_cells(max_rows: int | None) -> int | None:
+    if max_rows is None or max_rows <= 0:
+        return None
+    return max_rows
 
 
 def _run_optimal(args: argparse.Namespace) -> None:
     from optimal.solver import solve_from_dna
     from optimal.solution_transformer import transform
 
-    max_cells = args.max_rows if args.max_rows > 0 else None
-    dna = parse_dna_xml(args.xml, seed=args.seed, max_cells=max_cells)
+    dna = parse_dna_xml(args.xml, seed=args.seed, max_cells=_max_cells(args.max_rows))
     path = solve_from_dna(dna, max_time_seconds=args.time_limit)
     ordered, sequence = transform(dna, path)
     print("K-mer indices along tour:", path)
@@ -66,12 +85,13 @@ def _run_optimal(args: argparse.Namespace) -> None:
 def _run_heuristic(args: argparse.Namespace) -> None:
     from heuristic.heuristic import basic_check, simulated_annealing
 
-    max_cells = args.max_rows if args.max_rows > 0 else None
-    dna = parse_dna_xml(args.xml, seed=args.seed, max_cells=max_cells)
+    dna = parse_dna_xml(args.xml, seed=args.seed, max_cells=_max_cells(args.max_rows))
     result = simulated_annealing(
         dna,
         seed=args.seed,
         iterations=args.iterations,
+        alpha=args.alpha,
+        beta=args.beta,
     )
     print("Best cost:", result.cost)
     print("Iterations:", result.iterations)
