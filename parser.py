@@ -4,7 +4,21 @@ from xml.etree import ElementTree
 from dna import Dna, Kmer
 
 
-def parse_dna_xml(file_path: str | Path, seed: int | None = None) -> Dna:
+def parse_dna_xml(
+    file_path: str | Path,
+    seed: int | None = None,
+    *,
+    max_cells: int | None = None,
+) -> Dna:
+    """
+    Parse DNA probe XML into :class:`Dna`.
+
+    Parameters
+    ----------
+    max_cells:
+        If set and positive, only the first *max_cells* ``<cell>`` elements are
+        read. If ``None`` or ``<= 0``, all cells are included.
+    """
     root = ElementTree.parse(file_path).getroot()
     probe = root.find("probe")
 
@@ -13,12 +27,16 @@ def parse_dna_xml(file_path: str | Path, seed: int | None = None) -> Dna:
 
     pattern = probe.attrib.get("pattern", "")
     kmer_length = len(pattern)
+    cells = probe.findall("cell")
+    if max_cells is not None and max_cells > 0:
+        cells = cells[:max_cells]
+
     kmers = [
         Kmer(
             sequence=(cell.text or "").strip(),
             intensity=int(cell.attrib["intensity"]),
         )
-        for cell in probe.findall("cell")
+        for cell in cells
     ]
 
     if not kmer_length and kmers:
