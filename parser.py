@@ -4,7 +4,7 @@ from xml.etree import ElementTree
 from dna import Dna, Kmer
 
 
-def parse_dna_xml(file_path: str | Path) -> Dna:
+def parse_dna_xml(file_path: str | Path, seed: int | None = None) -> Dna:
     root = ElementTree.parse(file_path).getroot()
     probe = root.find("probe")
 
@@ -24,16 +24,18 @@ def parse_dna_xml(file_path: str | Path) -> Dna:
     if not kmer_length and kmers:
         kmer_length = len(kmers[0].sequence)
 
-    return Dna(
+    dna = Dna(
         key=root.attrib["key"],
         length=int(root.attrib["length"]),
         start=root.attrib["start"],
         kmer_length=kmer_length,
         kmers=kmers,
     )
+    dna.map_occurrences(seed=seed)
+
+    return dna
 
 
 if __name__ == "__main__":
     dna = parse_dna_xml("data.xml")
-    dna.map_occurrences()
     print(dna)
