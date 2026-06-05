@@ -1,16 +1,27 @@
 from pathlib import Path
+from typing import IO
 from xml.etree import ElementTree
 
 from dna import Dna, Kmer
 
 
+def _xml_root(source: str | Path | IO[str]) -> ElementTree.Element:
+    if isinstance(source, Path):
+        return ElementTree.parse(source).getroot()
+    if isinstance(source, str):
+        if source.lstrip().startswith("<"):
+            return ElementTree.fromstring(source)
+        return ElementTree.parse(source).getroot()
+    return ElementTree.parse(source).getroot()
+
+
 def parse_dna_xml(
-    file_path: str | Path,
+    source: str | Path | IO[str],
     seed: int | None = None,
     *,
     max_cells: int | None = None,
 ) -> Dna:
-    root = ElementTree.parse(file_path).getroot()
+    root = _xml_root(source)
     probe = root.find("probe")
 
     if probe is None:

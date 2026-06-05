@@ -1,0 +1,12 @@
+<dna key="test" length="20" start="AAAACAAATG">
+<probe pattern="NNNNNNNNNN">
+<cell intensity="1">AAAACAAATG</cell>
+<cell intensity="1">AAACAAATGT</cell>
+<cell intensity="1">AACAAATGTG</cell>
+<cell intensity="1">ACAAATGTGT</cell>
+<cell intensity="1">CAAATGTGTG</cell>
+<cell intensity="1">AAATGTGTGG</cell>
+<cell intensity="1">AATGTGTGGT</cell>
+<cell intensity="1">ATGTGTGGTT</cell>
+</probe>
+</dna>
