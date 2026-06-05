@@ -336,10 +336,10 @@ class SimulatedAnnealingSolver:
 def simulated_annealing(
     dna: Dna,
     seed: Optional[int] = None,
-    iterations: int = 60000,
+    iterations: int = 200000,
     start_temperature: float = 80.0,
     cooling: float = 0.9995,
-    alpha: float = 10.0,
+    alpha: float = 60.0,
     beta: float = 1.0,
     time_limit: Optional[float] = None,
 ) -> HeuristicResult:
@@ -382,7 +382,7 @@ if __name__ == "__main__":
     result = simulated_annealing(
         dna,
         seed=123,
-        iterations=200000,
+        iterations=1000000,
         start_temperature=80.0,
         cooling=0.9995,
         alpha=60.0,
