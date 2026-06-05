@@ -4,6 +4,7 @@ from collections import Counter
 from dataclasses import dataclass
 from math import exp
 from random import Random
+from time import perf_counter
 from typing import Optional
 
 from pathlib import Path
@@ -47,6 +48,7 @@ class SimulatedAnnealingSolver:
         cooling: float = 0.9995,
         alpha: float = 10.0,
         beta: float = 1.0,
+        time_limit: Optional[float] = None,
     ):
         self.dna = dna
         self.rng = Random(seed)
@@ -55,6 +57,8 @@ class SimulatedAnnealingSolver:
         self.start_temperature = start_temperature
         self.end_temperature = end_temperature
         self.cooling = cooling
+
+        self.time_limit = time_limit
 
         # alpha - kara za zla liczbe znanych l-merow
         # beta  - kara za l-mery, ktorych nie ma w pliku XML
@@ -111,9 +115,6 @@ class SimulatedAnnealingSolver:
         return tekst
 
     def create_start_solution(self) -> str:
-        # To nie jest greedy. Jezeli da sie kontynuowac po nakladaniu l-1,
-        # wybieramy losowy pasujacy l-mer. Gdy nie ma pasujacego l-mera,
-        # dopisujemy losowa litere.
         seq = self.start
 
         while len(seq) < self.n:
@@ -141,8 +142,6 @@ class SimulatedAnnealingSolver:
         return counts
 
     def intensity_range(self, intensity: int) -> tuple[int, int]:
-        # W komentarzu XML intensywnosc 9 oznacza 9+.
-        # Wtedy jako gorne ograniczenie bierzemy maksymalna liczbe l-merow.
         if intensity >= 9:
             return 9, self.n - self.l + 1
 
@@ -168,8 +167,6 @@ class SimulatedAnnealingSolver:
 
             cost += self.alpha * self.interval_penalty(ile_razy, low, high)
 
-        # Err-: brakujace l-mery sa mozliwe, dlatego nie blokujemy ich calkiem.
-        # Dajemy tylko mala kare za l-mery spoza spectrum.
         for kmer, ile_razy in counts.items():
             if kmer not in self.spectrum_set:
                 cost += self.beta * ile_razy
@@ -279,37 +276,58 @@ class SimulatedAnnealingSolver:
         return known, unknown
 
     def solve(self) -> HeuristicResult:
-        current = self.create_start_solution()
-        current_cost = self.evaluate(current)
+        deadline = None
+        if self.time_limit is not None:
+            deadline = perf_counter() + self.time_limit
 
-        best = current
-        best_cost = current_cost
+        best: Optional[str] = None
+        best_cost = float("inf")
+        total_iterations = 0
+        out_of_time = False
 
-        temperature = self.start_temperature
-
-        for i in range(self.iterations):
-            neighbour = self.make_neighbour(current)
-            neighbour_cost = self.evaluate(neighbour)
-
-            if self.accept_worse_solution(current_cost, neighbour_cost, temperature):
-                current = neighbour
-                current_cost = neighbour_cost
+        while True:
+            current = self.create_start_solution()
+            current_cost = self.evaluate(current)
 
             if current_cost < best_cost:
                 best = current
                 best_cost = current_cost
 
-            temperature *= self.cooling
+            temperature = self.start_temperature
 
-            if temperature < self.end_temperature:
-                temperature = self.end_temperature
+            for i in range(self.iterations):
+                neighbour = self.make_neighbour(current)
+                neighbour_cost = self.evaluate(neighbour)
+
+                if self.accept_worse_solution(current_cost, neighbour_cost, temperature):
+                    current = neighbour
+                    current_cost = neighbour_cost
+
+                if current_cost < best_cost:
+                    best = current
+                    best_cost = current_cost
+
+                temperature *= self.cooling
+
+                if temperature < self.end_temperature:
+                    temperature = self.end_temperature
+
+                total_iterations += 1
+
+                # Czas sprawdzamy co 1024 iteracje, by nie wolac zegara zbyt czesto.
+                if deadline is not None and (i & 1023) == 0 and perf_counter() >= deadline:
+                    out_of_time = True
+                    break
+
+            if deadline is None or out_of_time or perf_counter() >= deadline:
+                break
 
         known, unknown = self.statistics(best)
 
         return HeuristicResult(
             sequence=best,
             cost=best_cost,
-            iterations=self.iterations,
+            iterations=total_iterations,
             known_kmers_used=known,
             unknown_kmers_count=unknown,
         )
@@ -323,6 +341,7 @@ def simulated_annealing(
     cooling: float = 0.9995,
     alpha: float = 10.0,
     beta: float = 1.0,
+    time_limit: Optional[float] = None,
 ) -> HeuristicResult:
     solver = SimulatedAnnealingSolver(
         dna=dna,
@@ -332,6 +351,7 @@ def simulated_annealing(
         cooling=cooling,
         alpha=alpha,
         beta=beta,
+        time_limit=time_limit,
     )
 
     return solver.solve()
@@ -362,11 +382,14 @@ if __name__ == "__main__":
     result = simulated_annealing(
         dna,
         seed=123,
-        iterations=1000000,
+        iterations=200000,
         start_temperature=80.0,
         cooling=0.9995,
-        alpha=10.0,
+        alpha=60.0,
         beta=1.0,
+        time_limit=99.0,
+        # alpha - kara za zla liczbe znanych l-merow
+        # beta  - kara za l-mery, ktorych nie ma w pliku XML
     )
 
     print("Najlepszy koszt:", result.cost)
