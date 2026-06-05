@@ -341,7 +341,7 @@ def simulated_annealing(
     cooling: float = 0.9995,
     alpha: float = 60.0,
     beta: float = 1.0,
-    time_limit: Optional[float] = None,
+    time_limit: Optional[float] = 99,
 ) -> HeuristicResult:
     solver = SimulatedAnnealingSolver(
         dna=dna,
